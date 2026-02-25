@@ -1,0 +1,92 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+yarn-error.log
+
+# Environment files - NEVER COMMIT THESE!
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+*.env
+
+# Build files
+dist/
+build/
+*.log
+
+# IDE - VS Code
+.vscode/
+*.code-workspace
+.history/
+
+# IDE - WebStorm
+.idea/
+*.iml
+
+# IDE - Sublime
+*.sublime-*
+ 
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Backend uploads - keep folder but not files
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/uploads/README.md
+
+# Backend logs
+backend/*.log
+backend/npm-debug.log*
+backend/yarn-debug.log*
+backend/yarn-error.log*
+
+# Backdend runtime
+backend/pid
+backend/seed
+backend/database.json
+
+# Frontend
+frontend/node_modules/
+frontend/build/
+frontend/.env
+frontend/.env.local
+frontend/.env.development
+frontend/.env.production
+frontend/package-lock.json
+frontend/yarn.lock
+frontend/coverage/
+frontend/.eslintcache
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
