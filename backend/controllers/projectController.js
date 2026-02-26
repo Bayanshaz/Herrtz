@@ -1,54 +1,25 @@
 const Project = require('../models/Project');
-const path = require('path');
-const fs = require('fs');
+const { cloudinary } = require('../config/cloudinary');
 
-exports.getProjects = async (req, res, next) => {
-  try {
-    const { category, featured } = req.query;
-    let query = {};
-
-    if (category) query.category = category;
-    if (featured) query.featured = featured === 'true';
-
-    const projects = await Project.find(query).sort('-createdAt');
-    res.status(200).json({
-      success: true,
-      count: projects.length,
-      data: projects
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-exports.getProject = async (req, res, next) => {
-  try {
-    const project = await Project.findById(req.params.id);
-    
-    if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found'
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: project
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
+// @desc    Create new project
+// @route   POST /api/projects
+// @access  Private
 exports.createProject = async (req, res, next) => {
   try {
+    console.log('Files received:', req.files);
+    
     if (!req.files || !req.files.mainImage) {
       return res.status(400).json({
         success: false,
         message: 'Please upload a main image'
       });
     }
+
+    // Get Cloudinary URLs from uploaded files
+    const mainImageUrl = req.files.mainImage[0].path; // Cloudinary URL
+    const additionalImageUrls = req.files.images 
+      ? req.files.images.map(file => file.path)
+      : [];
 
     const projectData = {
       title: req.body.title,
@@ -59,13 +30,16 @@ exports.createProject = async (req, res, next) => {
       area: req.body.area || '',
       duration: req.body.duration || '',
       completedDate: req.body.completedDate || null,
-      mainImage: `/uploads/${req.files.mainImage[0].filename}`,
-      image: `/uploads/${req.files.mainImage[0].filename}`
+      mainImage: mainImageUrl,
+      image: mainImageUrl, // For backward compatibility
+      images: additionalImageUrls,
+      cloudinaryIds: {
+        main: req.files.mainImage[0].filename,
+        additional: req.files.images 
+          ? req.files.images.map(f => f.filename)
+          : []
+      }
     };
-
-    if (req.files.images && req.files.images.length > 0) {
-      projectData.images = req.files.images.map(file => `/uploads/${file.filename}`);
-    }
 
     const project = await Project.create(projectData);
 
@@ -82,6 +56,9 @@ exports.createProject = async (req, res, next) => {
   }
 };
 
+// @desc    Update project
+// @route   PUT /api/projects/:id
+// @access  Private
 exports.updateProject = async (req, res, next) => {
   try {
     let project = await Project.findById(req.params.id);
@@ -104,26 +81,35 @@ exports.updateProject = async (req, res, next) => {
       completedDate: req.body.completedDate || null
     };
 
+    // Handle main image update
     if (req.files && req.files.mainImage) {
-      const oldImagePath = path.join(__dirname, '..', project.mainImage || project.image);
-      if (fs.existsSync(oldImagePath)) {
-        fs.unlinkSync(oldImagePath);
-      }
-      projectData.mainImage = `/uploads/${req.files.mainImage[0].filename}`;
-      projectData.image = `/uploads/${req.files.mainImage[0].filename}`;
-    }
-
-    if (req.files && req.files.images) {
-      if (project.images && project.images.length > 0) {
-        project.images.forEach(imgPath => {
-          const fullPath = path.join(__dirname, '..', imgPath);
-          if (fs.existsSync(fullPath)) {
-            fs.unlinkSync(fullPath);
-          }
-        });
+      // Delete old image from Cloudinary
+      if (project.cloudinaryIds?.main) {
+        await cloudinary.uploader.destroy(project.cloudinaryIds.main);
       }
       
-      projectData.images = req.files.images.map(file => `/uploads/${file.filename}`);
+      projectData.mainImage = req.files.mainImage[0].path;
+      projectData.image = req.files.mainImage[0].path; // For backward compatibility
+      projectData.cloudinaryIds = {
+        ...project.cloudinaryIds,
+        main: req.files.mainImage[0].filename
+      };
+    }
+
+    // Handle additional images update
+    if (req.files && req.files.images) {
+      // Delete old additional images from Cloudinary
+      if (project.cloudinaryIds?.additional?.length > 0) {
+        for (const id of project.cloudinaryIds.additional) {
+          await cloudinary.uploader.destroy(id);
+        }
+      }
+      
+      projectData.images = req.files.images.map(file => file.path);
+      projectData.cloudinaryIds = {
+        ...project.cloudinaryIds,
+        additional: req.files.images.map(f => f.filename)
+      };
     }
 
     project = await Project.findByIdAndUpdate(req.params.id, projectData, {
@@ -144,6 +130,9 @@ exports.updateProject = async (req, res, next) => {
   }
 };
 
+// @desc    Delete project
+// @route   DELETE /api/projects/:id
+// @access  Private
 exports.deleteProject = async (req, res, next) => {
   try {
     const project = await Project.findById(req.params.id);
@@ -155,18 +144,19 @@ exports.deleteProject = async (req, res, next) => {
       });
     }
 
-    const mainImagePath = path.join(__dirname, '..', project.mainImage || project.image);
-    if (fs.existsSync(mainImagePath)) {
-      fs.unlinkSync(mainImagePath);
-    }
-
-    if (project.images && project.images.length > 0) {
-      project.images.forEach(imgPath => {
-        const fullPath = path.join(__dirname, '..', imgPath);
-        if (fs.existsSync(fullPath)) {
-          fs.unlinkSync(fullPath);
+    // Delete images from Cloudinary
+    if (project.cloudinaryIds) {
+      // Delete main image
+      if (project.cloudinaryIds.main) {
+        await cloudinary.uploader.destroy(project.cloudinaryIds.main);
+      }
+      
+      // Delete additional images
+      if (project.cloudinaryIds.additional?.length > 0) {
+        for (const id of project.cloudinaryIds.additional) {
+          await cloudinary.uploader.destroy(id);
         }
-      });
+      }
     }
 
     await project.deleteOne();

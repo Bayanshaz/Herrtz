@@ -1,7 +1,7 @@
 import React from 'react';
 import { useData } from '../context/DataContext';
 import { Link } from 'react-router-dom';
-import { FiImage, FiUsers, FiSettings, FiVideo, FiMail } from 'react-icons/fi';
+import { FiImage, FiUsers, FiSettings, FiVideo} from 'react-icons/fi';
 
 const AdminDashboard = () => {
   const { projects, team, services, videos } = useData();

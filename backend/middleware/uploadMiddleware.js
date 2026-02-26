@@ -1,46 +1,22 @@
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const { projectStorage, additionalImagesStorage, teamStorage } = require('../config/cloudinary');
 
-// Ensure uploads directory exists
-const uploadDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+// For single file upload (team members)
+const uploadSingle = multer({ storage: teamStorage }).single('image');
 
-const storage = multer.diskStorage({
-  destination: function(req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function(req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
+// For multiple file uploads with different fields (projects)
+const uploadFields = multer({
+  storage: projectStorage
+}).fields([
+  { name: 'mainImage', maxCount: 1 },
+  { name: 'images', maxCount: 10 }
+]);
 
-const fileFilter = (req, file, cb) => {
-  const filetypes = /jpeg|jpg|png|gif|webp/;
-  const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = filetypes.test(file.mimetype);
-
-  if (mimetype && extname) {
-    return cb(null, true);
-  } else {
-    cb(new Error('Only image files are allowed'), false);
-  }
-};
-
-const upload = multer({
-  storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: fileFilter
-});
+// Generic upload for any single file
+const upload = multer({ storage: teamStorage });
 
 module.exports = {
-  uploadSingle: upload.single('image'),
-  uploadFields: upload.fields([
-    { name: 'mainImage', maxCount: 1 },
-    { name: 'images', maxCount: 10 }
-  ]),
+  uploadSingle,
+  uploadFields,
   upload
 };

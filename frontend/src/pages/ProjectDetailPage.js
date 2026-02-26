@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
@@ -7,6 +7,8 @@ import Footer from '../components/common/Footer';
 import Loading from '../components/common/Loading';
 import PhotoViewer from '../components/common/PhotoViewer';
 import { FiArrowLeft, FiCalendar, FiMapPin, FiMaximize2, FiEye } from 'react-icons/fi';
+import { getOptimizedImage, getSrcSet, PLACEHOLDER_IMAGE, imageDimensions } from '../utils/imageUtils';
+import API from '../api';
 import toast from 'react-hot-toast';
 
 const ProjectDetailPage = () => {
@@ -15,15 +17,12 @@ const ProjectDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imageErrors, setImageErrors] = useState({});
 
-  useEffect(() => {
-    fetchProject();
-  }, [id]);
-
-  const fetchProject = async () => {
+  const fetchProject = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`/api/projects/${id}`);
+      const res = await API.get(`/projects/${id}`);
       setProject(res.data.data);
     } catch (err) {
       toast.error('Failed to load project details');
@@ -31,12 +30,29 @@ const ProjectDetailPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    fetchProject();
+  }, [fetchProject]);
 
   const openViewer = (index) => {
     setCurrentImageIndex(index);
     setViewerOpen(true);
   };
+
+  const handleImageError = (imageId) => {
+    setImageErrors(prev => ({ ...prev, [imageId]: true }));
+  };
+
+  if (loading) return <Loading />;
+  if (!project) return <div>Project not found</div>;
+
+  const mainImageUrl = imageErrors['main'] 
+    ? PLACEHOLDER_IMAGE 
+    : (project.mainImage || project.image);
+
+  const allImages = [mainImageUrl, ...(project.images || [])];
 
   const handlePrev = () => {
     setCurrentImageIndex((prev) => 
@@ -49,11 +65,6 @@ const ProjectDetailPage = () => {
       prev === allImages.length - 1 ? 0 : prev + 1
     );
   };
-
-  if (loading) return <Loading />;
-  if (!project) return <div>Project not found</div>;
-
-  const allImages = [project.mainImage || project.image, ...(project.images || [])];
 
   return (
     <>
@@ -85,6 +96,7 @@ const ProjectDetailPage = () => {
           </motion.div>
 
           <div className="project-gallery">
+            {/* Main Image */}
             <motion.div 
               className="main-image-container"
               initial={{ opacity: 0, y: 20 }}
@@ -93,43 +105,57 @@ const ProjectDetailPage = () => {
             >
               <div className="main-image-wrapper">
                 <img 
-                  src={project.mainImage || project.image} 
+                  src={getOptimizedImage(mainImageUrl, imageDimensions.projectMain)} 
+                  srcSet={getSrcSet(mainImageUrl)}
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1024px"
                   alt={project.title} 
                   className="main-image"
+                  onError={() => handleImageError('main')}
                 />
                 <button 
                   className="view-photos-btn"
                   onClick={() => openViewer(0)}
                 >
-                  <FiEye /> View Photos
+                  <FiEye /> View Photos ({allImages.length})
                 </button>
               </div>
             </motion.div>
 
+            {/* Additional Images Grid */}
             {project.images && project.images.length > 0 && (
               <div className="additional-images-section">
                 <h3>More Photos ({project.images.length})</h3>
                 <div className="image-grid">
-                  {project.images.map((img, index) => (
-                    <motion.div 
-                      key={index}
-                      className="grid-image-wrapper"
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: index * 0.1 }}
-                      onClick={() => openViewer(index + 1)}
-                    >
-                      <img 
-                        src={img} 
-                        alt={`${project.title} - ${index + 1}`}
-                        className="grid-image"
-                      />
-                      <div className="image-overlay">
-                        <FiEye />
-                      </div>
-                    </motion.div>
-                  ))}
+                  {project.images.map((img, index) => {
+                    const imgUrl = imageErrors[`additional-${index}`] 
+                      ? PLACEHOLDER_IMAGE 
+                      : img;
+                    
+                    return (
+                      <motion.div 
+                        key={index}
+                        className="grid-image-wrapper"
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: index * 0.1 }}
+                        onClick={() => openViewer(index + 1)}
+                      >
+                        <img 
+                          src={getOptimizedImage(imgUrl, imageDimensions.projectGrid)} 
+                          srcSet={getSrcSet(imgUrl)}
+                          sizes="(max-width: 768px) 50vw, 300px"
+                          alt={`${project.title} - ${index + 1}`}
+                          className="grid-image"
+                          onError={() => handleImageError(`additional-${index}`)}
+                          loading="lazy"
+                        />
+                        <div className="image-overlay">
+                          <FiEye />
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -148,6 +174,7 @@ const ProjectDetailPage = () => {
         </div>
       </section>
 
+      {/* Photo Viewer Modal */}
       {viewerOpen && (
         <PhotoViewer
           images={allImages}

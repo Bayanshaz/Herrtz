@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
 import Modal from 'react-modal';
-import toast from 'react-hot-toast';
+
 
 Modal.setAppElement('#root');
 

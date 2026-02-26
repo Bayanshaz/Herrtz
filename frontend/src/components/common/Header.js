@@ -8,7 +8,6 @@ const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Handle scroll effect
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 50) {
@@ -32,8 +31,11 @@ const Header = () => {
       navigate('/gallery');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
+      // For home page sections (team, services, contact)
       if (location.pathname !== '/') {
+        // If not on home page, navigate to home first
         navigate('/');
+        // Wait for navigation to complete then scroll
         setTimeout(() => {
           const element = document.getElementById(sectionId);
           if (element) {
@@ -41,6 +43,7 @@ const Header = () => {
           }
         }, 100);
       } else {
+        // Already on home page, just scroll
         const element = document.getElementById(sectionId);
         if (element) {
           element.scrollIntoView({ behavior: 'smooth' });
@@ -50,12 +53,19 @@ const Header = () => {
   };
 
   const navItems = [
-    { id: '/', label: 'HOME' },
-    { id: '/gallery', label: 'GALLERY' },
-    { id: 'team', label: 'TEAM' },
-    { id: 'services', label: 'SERVICES' },
-    { id: 'contact', label: 'CONTACT' }
+    { id: '/', label: 'HOME', type: 'link' },
+    { id: '/gallery', label: 'GALLERY', type: 'link' },
+    { id: 'team', label: 'TEAM', type: 'scroll' },
+    { id: 'services', label: 'SERVICES', type: 'scroll' },
+    { id: 'contact', label: 'CONTACT', type: 'scroll' }
   ];
+
+  const isActive = (item) => {
+    if (item.type === 'link') {
+      return location.pathname === item.id;
+    }
+    return false;
+  };
 
   return (
     <header className={scrolled ? 'scrolled' : ''}>
@@ -74,13 +84,22 @@ const Header = () => {
           <ul className={`nav-links ${isOpen ? 'active' : ''}`}>
             {navItems.map(item => (
               <li key={item.id}>
-                <span 
-                  onClick={() => handleNavClick(item.id)}
-                  style={{ cursor: 'pointer' }}
-                  className={location.pathname === item.id ? 'active' : ''}
-                >
-                  {item.label}
-                </span>
+                {item.type === 'link' ? (
+                  <Link 
+                    to={item.id}
+                    onClick={() => setIsOpen(false)}
+                    className={isActive(item) ? 'active' : ''}
+                  >
+                    {item.label}
+                  </Link>
+                ) : (
+                  <span 
+                    onClick={() => handleNavClick(item.id)}
+                    className={location.pathname === '/' && document.getElementById(item.id) ? 'scroll-link' : 'scroll-link'}
+                  >
+                    {item.label}
+                  </span>
+                )}
               </li>
             ))}
           </ul>

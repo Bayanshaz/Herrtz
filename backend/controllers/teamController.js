@@ -1,22 +1,13 @@
 const Team = require('../models/Team');
-const path = require('path');
-const fs = require('fs');
+const { cloudinary } = require('../config/cloudinary');
 
-exports.getTeam = async (req, res, next) => {
-  try {
-    const team = await Team.find().sort('-createdAt');
-    res.status(200).json({
-      success: true,
-      count: team.length,
-      data: team
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
+// @desc    Create team member
+// @route   POST /api/team
+// @access  Private
 exports.createTeamMember = async (req, res, next) => {
   try {
+    console.log('Received file:', req.file);
+    
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -29,7 +20,8 @@ exports.createTeamMember = async (req, res, next) => {
       position: req.body.position,
       bio: req.body.bio || '',
       isCEO: req.body.isCEO === 'true',
-      image: `/uploads/${req.file.filename}`
+      image: req.file.path, // Cloudinary URL
+      cloudinaryId: req.file.filename
     };
 
     const member = await Team.create(memberData);
@@ -47,6 +39,9 @@ exports.createTeamMember = async (req, res, next) => {
   }
 };
 
+// @desc    Update team member
+// @route   PUT /api/team/:id
+// @access  Private
 exports.updateTeamMember = async (req, res, next) => {
   try {
     let member = await Team.findById(req.params.id);
@@ -66,11 +61,13 @@ exports.updateTeamMember = async (req, res, next) => {
     };
 
     if (req.file) {
-      const oldImagePath = path.join(__dirname, '..', member.image);
-      if (fs.existsSync(oldImagePath)) {
-        fs.unlinkSync(oldImagePath);
+      // Delete old image from Cloudinary
+      if (member.cloudinaryId) {
+        await cloudinary.uploader.destroy(member.cloudinaryId);
       }
-      memberData.image = `/uploads/${req.file.filename}`;
+      
+      memberData.image = req.file.path;
+      memberData.cloudinaryId = req.file.filename;
     }
 
     member = await Team.findByIdAndUpdate(req.params.id, memberData, {
@@ -91,6 +88,9 @@ exports.updateTeamMember = async (req, res, next) => {
   }
 };
 
+// @desc    Delete team member
+// @route   DELETE /api/team/:id
+// @access  Private
 exports.deleteTeamMember = async (req, res, next) => {
   try {
     const member = await Team.findById(req.params.id);
@@ -102,9 +102,9 @@ exports.deleteTeamMember = async (req, res, next) => {
       });
     }
 
-    const imagePath = path.join(__dirname, '..', member.image);
-    if (fs.existsSync(imagePath)) {
-      fs.unlinkSync(imagePath);
+    // Delete image from Cloudinary
+    if (member.cloudinaryId) {
+      await cloudinary.uploader.destroy(member.cloudinaryId);
     }
 
     await member.deleteOne();

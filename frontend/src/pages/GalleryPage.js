@@ -7,17 +7,23 @@ import { useData } from '../context/DataContext';
 import { motion } from 'framer-motion';
 import Loading from '../components/common/Loading';
 import { FiImage, FiPlay } from 'react-icons/fi';
+import { getOptimizedImage, getSrcSet, PLACEHOLDER_IMAGE, imageDimensions } from '../utils/imageUtils';
 
 const GalleryPage = () => {
   const { projects, videos, loading } = useData();
   const [filter, setFilter] = useState('all');
   const [selectedVideo, setSelectedVideo] = useState(null);
+  const [imageErrors, setImageErrors] = useState({});
 
   if (loading) return <Loading />;
 
   const filteredProjects = filter === 'all' 
     ? projects 
     : projects.filter(p => p.category === filter);
+
+  const handleImageError = (projectId) => {
+    setImageErrors(prev => ({ ...prev, [projectId]: true }));
+  };
 
   const getYoutubeVideoId = (url) => {
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
@@ -75,36 +81,50 @@ const GalleryPage = () => {
           </div>
 
           <div className="gallery-grid">
-            {filteredProjects.map((project, index) => (
-              <motion.div 
-                key={project._id}
-                className="gallery-item"
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <Link to={`/project/${project._id}`}>
-                  <img src={project.mainImage || project.image} alt={project.title} />
-                  <div className="gallery-overlay">
-                    <h3>{project.title}</h3>
-                    <p>{project.location}</p>
-                    <span className={`category-badge ${project.category}`}>
-                      {project.category}
-                    </span>
-                    {project.images && project.images.length > 0 && (
-                      <span className="photo-count">
-                        <FiImage /> {project.images.length + 1}
+            {filteredProjects.map((project, index) => {
+              const imageUrl = imageErrors[project._id] 
+                ? PLACEHOLDER_IMAGE 
+                : (project.mainImage || project.image);
+              
+              return (
+                <motion.div 
+                  key={project._id}
+                  className="gallery-item"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <Link to={`/project/${project._id}`}>
+                    <img 
+                      src={getOptimizedImage(imageUrl, imageDimensions.gallery)} 
+                      srcSet={getSrcSet(imageUrl)}
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      alt={project.title}
+                      onError={() => handleImageError(project._id)}
+                      loading="lazy"
+                    />
+                    <div className="gallery-overlay">
+                      <h3>{project.title}</h3>
+                      <p>{project.location}</p>
+                      <span className={`category-badge ${project.category}`}>
+                        {project.category}
                       </span>
-                    )}
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
+                      {project.images && project.images.length > 0 && (
+                        <span className="photo-count">
+                          <FiImage /> {project.images.length + 1}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
 
+      {/* Video Gallery Section */}
       {videos.length > 0 && (
         <section className="video-gallery">
           <div className="container">
@@ -114,8 +134,12 @@ const GalleryPage = () => {
             <div className="videos-grid">
               {videos.map((video, index) => {
                 const videoId = getYoutubeVideoId(video.url);
-                const thumbnail = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : '';
-                const fallbackThumbnail = videoId ? `https://img.youtube.com/vi/${videoId}/0.jpg` : '';
+                const thumbnail = videoId 
+                  ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` 
+                  : '';
+                const fallbackThumbnail = videoId 
+                  ? `https://img.youtube.com/vi/${videoId}/0.jpg` 
+                  : '';
                 
                 return (
                   <motion.div 
@@ -135,6 +159,7 @@ const GalleryPage = () => {
                           e.target.onerror = null;
                           e.target.src = fallbackThumbnail;
                         }}
+                        loading="lazy"
                       />
                       <div className="play-button">
                         <FiPlay />

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FiMapPin, FiPhone, FiMail } from 'react-icons/fi';
-import axios from 'axios';
+import API from '../../api';
 import toast from 'react-hot-toast';
 
 const Contact = () => {
@@ -17,7 +17,7 @@ const Contact = () => {
     setLoading(true);
 
     try {
-      const res = await axios.post('/api/messages', formData);
+      const res = await API.post('/messages', formData);
       
       if (res.data.success) {
         toast.success('Message sent successfully! We will contact you soon.');
@@ -75,6 +75,7 @@ const Contact = () => {
           </div>
 
           <div className="contact-form">
+            <h3>Send a Message</h3>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
                 <input

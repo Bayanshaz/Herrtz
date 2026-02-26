@@ -4,10 +4,13 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 
+// Import pages
 import HomePage from './pages/HomePage';
 import GalleryPage from './pages/GalleryPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import NotFoundPage from './pages/NotFoundPage';
+
+// Import admin pages
 import AdminLogin from './admin/AdminLogin';
 import AdminLayout from './admin/AdminLayout';
 import AdminDashboard from './admin/AdminDashboard';
@@ -17,6 +20,7 @@ import ServicesManager from './admin/ServicesManager';
 import VideosManager from './admin/VideosManager';
 import MessagesManager from './admin/MessagesManager';
 
+// Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
   if (!token) {
@@ -33,10 +37,12 @@ function App() {
         <DataProvider>
           <Toaster position="top-right" />
           <Routes>
+            {/* Public Routes */}
             <Route path="/" element={<HomePage />} />
             <Route path="/gallery" element={<GalleryPage />} />
             <Route path="/project/:id" element={<ProjectDetailPage />} />
             
+            {/* Admin Routes */}
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={
               <ProtectedRoute>
@@ -51,6 +57,7 @@ function App() {
               <Route path="messages" element={<MessagesManager />} />
             </Route>
             
+            {/* 404 */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </DataProvider>

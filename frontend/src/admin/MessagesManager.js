@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { FiMail, FiPhone, FiUser, FiTrash2, FiCheck, FiClock, FiX } from 'react-icons/fi'; // Added FiX here
-import axios from 'axios';
+import { FiMail, FiPhone, FiUser, FiTrash2, FiCheck, FiClock, FiX } from 'react-icons/fi';
+import API from '../api';
 import toast from 'react-hot-toast';
 import Modal from 'react-modal';
 
@@ -14,25 +14,30 @@ const MessagesManager = () => {
   const [viewingMessage, setViewingMessage] = useState(null);
   const { token } = useAuth();
 
-  useEffect(() => {
-    fetchMessages();
-  }, []);
-
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
+      setLoading(true);
       const config = {
         headers: {
           Authorization: `Bearer ${token}`
         }
       };
-      const res = await axios.get('/api/messages', config);
-      setMessages(res.data.data);
+      const res = await API.get('/messages', config);
+      
+      // Ensure messages is always an array
+      setMessages(res.data?.data || []);
     } catch (err) {
+      console.error('Error fetching messages:', err);
       toast.error('Failed to load messages');
+      setMessages([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    fetchMessages();
+  }, [fetchMessages]);
 
   const updateStatus = async (id, status) => {
     try {
@@ -41,7 +46,7 @@ const MessagesManager = () => {
           Authorization: `Bearer ${token}`
         }
       };
-      const res = await axios.put(`/api/messages/${id}`, { status }, config);
+      const res = await API.put(`/messages/${id}`, { status }, config);
       setMessages(messages.map(m => m._id === id ? res.data.data : m));
       toast.success('Status updated');
     } catch (err) {
@@ -58,7 +63,7 @@ const MessagesManager = () => {
           Authorization: `Bearer ${token}`
         }
       };
-      await axios.delete(`/api/messages/${id}`, config);
+      await API.delete(`/messages/${id}`, config);
       setMessages(messages.filter(m => m._id !== id));
       toast.success('Message deleted');
     } catch (err) {
@@ -76,16 +81,34 @@ const MessagesManager = () => {
       case 'unread': return <FiClock style={{ color: '#f39c12' }} />;
       case 'read': return <FiCheck style={{ color: '#3498db' }} />;
       case 'replied': return <FiCheck style={{ color: '#27ae60' }} />;
-      default: return null;
+      default: return <FiClock style={{ color: '#999' }} />;
     }
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    if (!dateString) return 'Unknown date';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    } catch (e) {
+      return 'Invalid date';
+    }
   };
 
-  if (loading) return <div>Loading messages...</div>;
+  // Safe check for messages array
+  const hasMessages = messages && Array.isArray(messages) && messages.length > 0;
+
+  if (loading) return (
+    <div className="admin-section">
+      <div className="section-header">
+        <h2>Contact Messages</h2>
+      </div>
+      <div style={{ textAlign: 'center', padding: '40px' }}>
+        <div className="loader"></div>
+        <p>Loading messages...</p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="admin-section">
@@ -94,17 +117,27 @@ const MessagesManager = () => {
       </div>
 
       <div className="messages-list">
-        {messages.length === 0 ? (
-          <p>No messages yet.</p>
+        {!hasMessages ? (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '60px 20px', 
+            background: '#f9f9f9', 
+            borderRadius: '8px',
+            color: '#666'
+          }}>
+            <FiMail size={48} style={{ color: '#ccc', marginBottom: '15px' }} />
+            <h3>No Messages Yet</h3>
+            <p>When users submit the contact form, their messages will appear here.</p>
+          </div>
         ) : (
           messages.map(message => (
-            <div key={message._id} className={`message-item ${message.status}`}>
+            <div key={message._id} className={`message-item ${message.status || 'unread'}`}>
               <div className="message-header">
                 <div className="message-sender" onClick={() => openViewModal(message)}>
-                  <FiUser /> {message.name}
+                  <FiUser /> {message.name || 'Unknown'}
                 </div>
                 <div className="message-email">
-                  <FiMail /> {message.email}
+                  <FiMail /> {message.email || 'No email'}
                 </div>
                 {message.phone && (
                   <div className="message-phone">
@@ -139,7 +172,7 @@ const MessagesManager = () => {
                 </button>
               </div>
               <div className="message-body" onClick={() => openViewModal(message)}>
-                <p>{message.message.substring(0, 100)}...</p>
+                <p>{message.message ? message.message.substring(0, 100) : 'No content'}...</p>
               </div>
               <div className="message-footer">
                 <small>
@@ -160,25 +193,25 @@ const MessagesManager = () => {
         {viewingMessage && (
           <>
             <div className="modal-header">
-              <h3>Message from {viewingMessage.name}</h3>
+              <h3>Message from {viewingMessage.name || 'Unknown'}</h3>
               <button onClick={() => setViewModalIsOpen(false)} className="close-btn">
                 <FiX />
               </button>
             </div>
             <div className="view-content">
               <div className="message-details">
-                <p><strong>Name:</strong> {viewingMessage.name}</p>
-                <p><strong>Email:</strong> {viewingMessage.email}</p>
+                <p><strong>Name:</strong> {viewingMessage.name || 'N/A'}</p>
+                <p><strong>Email:</strong> {viewingMessage.email || 'N/A'}</p>
                 {viewingMessage.phone && <p><strong>Phone:</strong> {viewingMessage.phone}</p>}
                 <p><strong>Received:</strong> {formatDate(viewingMessage.createdAt)}</p>
                 <p><strong>Status:</strong> 
-                  <span className={`status-badge ${viewingMessage.status}`}>
-                    {viewingMessage.status}
+                  <span className={`status-badge ${viewingMessage.status || 'unread'}`}>
+                    {viewingMessage.status || 'unread'}
                   </span>
                 </p>
                 <div className="message-content">
                   <h4>Message:</h4>
-                  <p>{viewingMessage.message}</p>
+                  <p>{viewingMessage.message || 'No message content'}</p>
                 </div>
               </div>
             </div>

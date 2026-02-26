@@ -1,8 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FiX, FiChevronLeft, FiChevronRight, FiDownload } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getOptimizedImage, PLACEHOLDER_IMAGE } from '../../utils/imageUtils';
 
 const PhotoViewer = ({ images, currentIndex, onClose, onPrev, onNext }) => {
+  const [loadedImages, setLoadedImages] = useState({});
+  const [imageErrors, setImageErrors] = useState({});
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') onClose();
@@ -18,6 +22,15 @@ const PhotoViewer = ({ images, currentIndex, onClose, onPrev, onNext }) => {
       document.body.style.overflow = 'unset';
     };
   }, [onClose, onPrev, onNext]);
+
+  const handleImageLoad = (index) => {
+    setLoadedImages(prev => ({ ...prev, [index]: true }));
+  };
+
+  const handleImageError = (index) => {
+    console.error(`Failed to load image at index ${index}`);
+    setImageErrors(prev => ({ ...prev, [index]: true }));
+  };
 
   const handleDownload = async () => {
     try {
@@ -36,6 +49,10 @@ const PhotoViewer = ({ images, currentIndex, onClose, onPrev, onNext }) => {
     }
   };
 
+  const currentImage = imageErrors[currentIndex] 
+    ? PLACEHOLDER_IMAGE 
+    : images[currentIndex];
+
   return (
     <AnimatePresence>
       <motion.div 
@@ -53,6 +70,7 @@ const PhotoViewer = ({ images, currentIndex, onClose, onPrev, onNext }) => {
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
           onClick={(e) => e.stopPropagation()}
         >
+          {/* Header */}
           <div className="photo-viewer-header">
             <div className="photo-counter">
               {currentIndex + 1} / {images.length}
@@ -67,6 +85,7 @@ const PhotoViewer = ({ images, currentIndex, onClose, onPrev, onNext }) => {
             </div>
           </div>
 
+          {/* Main Image Container */}
           <div className="photo-viewer-body">
             {images.length > 1 && (
               <>
@@ -88,14 +107,23 @@ const PhotoViewer = ({ images, currentIndex, onClose, onPrev, onNext }) => {
             )}
             
             <div className="photo-wrapper">
+              {!loadedImages[currentIndex] && !imageErrors[currentIndex] && (
+                <div className="image-loader">
+                  <div className="loader"></div>
+                </div>
+              )}
               <img 
-                src={images[currentIndex]} 
+                src={getOptimizedImage(currentImage, { width: 1200 })} 
                 alt={`Project view ${currentIndex + 1}`}
-                className="photo-viewer-image"
+                className={`photo-viewer-image ${loadedImages[currentIndex] ? 'loaded' : 'loading'}`}
+                onLoad={() => handleImageLoad(currentIndex)}
+                onError={() => handleImageError(currentIndex)}
+                loading="lazy"
               />
             </div>
           </div>
 
+          {/* Thumbnail Strip */}
           {images.length > 1 && (
             <div className="photo-thumbnails">
               {images.map((img, idx) => (
@@ -111,7 +139,14 @@ const PhotoViewer = ({ images, currentIndex, onClose, onPrev, onNext }) => {
                     }
                   }}
                 >
-                  <img src={img} alt={`Thumbnail ${idx + 1}`} />
+                  <img 
+                    src={getOptimizedImage(img, { width: 100, height: 100, crop: 'fill' })} 
+                    alt={`Thumbnail ${idx + 1}`}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = PLACEHOLDER_IMAGE;
+                    }}
+                  />
                 </div>
               ))}
             </div>

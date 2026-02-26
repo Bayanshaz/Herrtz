@@ -18,6 +18,9 @@ const TeamSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please add an image']
   },
+  cloudinaryId: {
+    type: String // For deleting images
+  },
   isCEO: {
     type: Boolean,
     default: false

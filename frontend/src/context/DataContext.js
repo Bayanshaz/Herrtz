@@ -1,5 +1,5 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import axios from 'axios';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import API from '../api';
 import toast from 'react-hot-toast';
 
 const DataContext = createContext();
@@ -13,18 +13,14 @@ export const DataProvider = ({ children }) => {
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const API = axios.create({
-    baseURL: process.env.REACT_APP_API_URL || ''
-  });
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [projectsRes, teamRes, servicesRes, videosRes] = await Promise.all([
-        API.get('/api/projects'),
-        API.get('/api/team'),
-        API.get('/api/services'),
-        API.get('/api/videos')
+        API.get('/projects'),
+        API.get('/team'),
+        API.get('/services'),
+        API.get('/videos')
       ]);
 
       setProjects(projectsRes.data.data || []);
@@ -37,11 +33,11 @@ export const DataProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const addProject = async (formData, token) => {
     try {
@@ -51,7 +47,7 @@ export const DataProvider = ({ children }) => {
           Authorization: `Bearer ${token}`
         }
       };
-      const res = await API.post('/api/projects', formData, config);
+      const res = await API.post('/projects', formData, config);
       setProjects([res.data.data, ...projects]);
       toast.success('Project added successfully');
       return { success: true, data: res.data.data };
@@ -69,7 +65,7 @@ export const DataProvider = ({ children }) => {
           Authorization: `Bearer ${token}`
         }
       };
-      const res = await API.put(`/api/projects/${id}`, formData, config);
+      const res = await API.put(`/projects/${id}`, formData, config);
       setProjects(projects.map(p => p._id === id ? res.data.data : p));
       toast.success('Project updated successfully');
       return { success: true };
@@ -86,7 +82,7 @@ export const DataProvider = ({ children }) => {
           Authorization: `Bearer ${token}`
         }
       };
-      await API.delete(`/api/projects/${id}`, config);
+      await API.delete(`/projects/${id}`, config);
       setProjects(projects.filter(p => p._id !== id));
       toast.success('Project deleted successfully');
       return { success: true };
@@ -104,7 +100,7 @@ export const DataProvider = ({ children }) => {
           Authorization: `Bearer ${token}`
         }
       };
-      const res = await API.post('/api/team', formData, config);
+      const res = await API.post('/team', formData, config);
       setTeam([...team, res.data.data]);
       toast.success('Team member added successfully');
       return { success: true };
@@ -122,7 +118,7 @@ export const DataProvider = ({ children }) => {
           Authorization: `Bearer ${token}`
         }
       };
-      const res = await API.put(`/api/team/${id}`, formData, config);
+      const res = await API.put(`/team/${id}`, formData, config);
       setTeam(team.map(m => m._id === id ? res.data.data : m));
       toast.success('Team member updated successfully');
       return { success: true };
@@ -139,7 +135,7 @@ export const DataProvider = ({ children }) => {
           Authorization: `Bearer ${token}`
         }
       };
-      await API.delete(`/api/team/${id}`, config);
+      await API.delete(`/team/${id}`, config);
       setTeam(team.filter(m => m._id !== id));
       toast.success('Team member deleted successfully');
       return { success: true };
@@ -156,7 +152,7 @@ export const DataProvider = ({ children }) => {
           Authorization: `Bearer ${token}`
         }
       };
-      const res = await API.post('/api/services', data, config);
+      const res = await API.post('/services', data, config);
       setServices([...services, res.data.data]);
       toast.success('Service added successfully');
       return { success: true };
@@ -173,7 +169,7 @@ export const DataProvider = ({ children }) => {
           Authorization: `Bearer ${token}`
         }
       };
-      const res = await API.put(`/api/services/${id}`, data, config);
+      const res = await API.put(`/services/${id}`, data, config);
       setServices(services.map(s => s._id === id ? res.data.data : s));
       toast.success('Service updated successfully');
       return { success: true };
@@ -190,7 +186,7 @@ export const DataProvider = ({ children }) => {
           Authorization: `Bearer ${token}`
         }
       };
-      await API.delete(`/api/services/${id}`, config);
+      await API.delete(`/services/${id}`, config);
       setServices(services.filter(s => s._id !== id));
       toast.success('Service deleted successfully');
       return { success: true };
@@ -207,7 +203,7 @@ export const DataProvider = ({ children }) => {
           Authorization: `Bearer ${token}`
         }
       };
-      const res = await API.post('/api/videos', data, config);
+      const res = await API.post('/videos', data, config);
       setVideos([...videos, res.data.data]);
       toast.success('Video added successfully');
       return { success: true };
@@ -224,7 +220,7 @@ export const DataProvider = ({ children }) => {
           Authorization: `Bearer ${token}`
         }
       };
-      const res = await API.put(`/api/videos/${id}`, data, config);
+      const res = await API.put(`/videos/${id}`, data, config);
       setVideos(videos.map(v => v._id === id ? res.data.data : v));
       toast.success('Video updated successfully');
       return { success: true };
@@ -241,7 +237,7 @@ export const DataProvider = ({ children }) => {
           Authorization: `Bearer ${token}`
         }
       };
-      await API.delete(`/api/videos/${id}`, config);
+      await API.delete(`/videos/${id}`, config);
       setVideos(videos.filter(v => v._id !== id));
       toast.success('Video deleted successfully');
       return { success: true };

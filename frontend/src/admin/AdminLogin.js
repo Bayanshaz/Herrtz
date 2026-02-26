@@ -26,6 +26,13 @@ const AdminLogin = () => {
     setLoading(false);
   };
 
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
   return (
     <div className="admin-login">
       <motion.div 
@@ -35,30 +42,32 @@ const AdminLogin = () => {
         transition={{ duration: 0.5 }}
       >
         <div className="login-header">
-          <img src="/logo.png" alt="Harrtz Concepts" className="login-logo" />
+          <img src="/logo.jpg" alt="Harrtz Concepts" className="login-logo" />
           <h2>Admin Login</h2>
           <p>Enter your credentials to access admin panel</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
-          <div className="form-group">
+          <div className="input-group">
             <FiMail className="input-icon" />
             <input
               type="email"
+              name="email"
               placeholder="Email Address"
               value={formData.email}
-              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              onChange={handleChange}
               required
             />
           </div>
 
-          <div className="form-group">
+          <div className="input-group">
             <FiLock className="input-icon" />
             <input
               type="password"
+              name="password"
               placeholder="Password"
               value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
+              onChange={handleChange}
               required
             />
           </div>
