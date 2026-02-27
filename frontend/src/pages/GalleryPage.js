@@ -9,6 +9,7 @@ import Loading from '../components/common/Loading';
 import { FiImage, FiPlay } from 'react-icons/fi';
 import { getOptimizedImage, getSrcSet, PLACEHOLDER_IMAGE, imageDimensions } from '../utils/imageUtils';
 
+
 const GalleryPage = () => {
   const { projects, videos, loading } = useData();
   const [filter, setFilter] = useState('all');
