@@ -5,15 +5,13 @@ const {
   updateTeamMember,
   deleteTeamMember
 } = require('../controllers/teamController');
-const { protect } =require('../middleware/authMiddleware');
-const { uploadSingle } = require('../middleware/uploadMiddleware');
+const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
 router.get('/', getTeam);
-
-router.post('/', protect, uploadSingle, createTeamMember);
-router.put('/:id', protect, uploadSingle, updateTeamMember);
+router.post('/', protect, createTeamMember);
+router.put('/:id', protect, updateTeamMember);
 router.delete('/:id', protect, deleteTeamMember);
 
 module.exports = router;
