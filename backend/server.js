@@ -5,9 +5,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
-const fs = require('fs');
 
-// Load env vars
 dotenv.config();
 
 // Import routes
@@ -20,33 +18,35 @@ const messageRoutes = require('./routes/messageRoutes');
 
 const app = express();
 
-// Body parser
+// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Set security headers
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// Enable CORS
-app.use(cors());
+// CORS configuration
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://herrtz.netlify.app'
+];
 
-// Dev logging middleware
+app.use(cors({
+  origin: function(origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
+
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Set static folder
-app.use('/uploads', express.static(uploadsDir));
-
-// Mount routers
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/team', teamRoutes);
@@ -63,12 +63,11 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Connect to database
+// MongoDB connection
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('MongoDB Connected');
     
-    // Create default admin if not exists
     const User = require('./models/User');
     User.findOne({ email: process.env.ADMIN_EMAIL }).then(async (user) => {
       if (!user) {
@@ -82,10 +81,9 @@ mongoose.connect(process.env.MONGO_URI)
       }
     });
   })
-  .catch(err => console.log('Database connection error:', err));
+  .catch(err => console.log('DB error:', err));
 
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
