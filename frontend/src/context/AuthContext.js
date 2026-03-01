@@ -14,15 +14,14 @@ export const AuthProvider = ({ children }) => {
   const loadUser = useCallback(async () => {
     try {
       setLoading(true);
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      };
-      const res = await API.get('/auth/me', config);
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+      const res = await API.get('/auth/me');
       setUser(res.data.data);
     } catch (err) {
-      console.error(err);
+      console.error('Load user error:', err);
       localStorage.removeItem('token');
       setToken(null);
       setUser(null);
@@ -32,24 +31,23 @@ export const AuthProvider = ({ children }) => {
   }, [token]);
 
   useEffect(() => {
-    if (token) {
-      loadUser();
-    } else {
-      setLoading(false);
-    }
-  }, [token, loadUser]);
+    loadUser();
+  }, [loadUser]);
 
   const login = async (email, password) => {
     try {
+      console.log('Attempting login to:', API.defaults.baseURL + '/auth/login');
       const res = await API.post('/auth/login', { email, password });
       
       localStorage.setItem('token', res.data.token);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
       setToken(res.data.token);
       setUser(res.data.user);
       
       toast.success('Login successful!');
       return { success: true };
     } catch (err) {
+      console.error('Login error:', err);
       toast.error(err.response?.data?.message || 'Login failed');
       return { success: false };
     }
@@ -57,6 +55,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setToken(null);
     setUser(null);
     toast.success('Logged out successfully');
