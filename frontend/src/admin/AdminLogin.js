@@ -27,7 +27,7 @@ const AdminLogin = () => {
         transition={{ duration: 0.5 }}
       >
         <div className="login-header">
-          <img src="/logo.jpg" alt="Harrtz Concepts" className="login-logo" />
+          <img src="/logo.jpeg" alt="Harrtz Concepts" className="login-logo" />
           <h2>Admin Login</h2>
           <p>Enter your credentials to access admin panel</p>
         </div>
