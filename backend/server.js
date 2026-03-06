@@ -25,22 +25,35 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// CORS configuration
+// CORS configuration - UPDATED with custom domain
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://herrtz.netlify.app'
+  'https://herrtz.netlify.app',
+  'https://harrtzconcepts.com',
+  'http://harrtzconcepts.com',
+  'https://www.harrtzconcepts.com',
+  'http://www.harrtzconcepts.com',
+  'https://heerrt.netlify.app' // Keeping the old one for backward compatibility
 ];
 
 app.use(cors({
   origin: function(origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    // Allow requests with no origin (like mobile apps, curl)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
+      console.log('❌ Blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true,
+  optionsSuccessStatus: 200
 }));
+
+// Handle preflight requests
+app.options('*', cors());
 
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
