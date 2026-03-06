@@ -13,9 +13,7 @@ import Loading from '../components/common/Loading';
 
 const HomePage = () => {
   const { loading } = useData();
-
   if (loading) return <Loading />;
-
   return (
     <>
       <Header />

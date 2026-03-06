@@ -11,7 +11,6 @@ const Team = () => {
     <section className="team" id="team">
       <div className="container">
         <h2 className="section-title">Our Team</h2>
-        
         <div className="team-content">
           {ceo && (
             <motion.div 
@@ -28,11 +27,12 @@ const Team = () => {
                 <p className="position">{ceo.position}</p>
                 <p className="bio">{ceo.bio}</p>
               </div>
+
+              
             </motion.div>
           )}
-          
           <div className="team-grid">
-            <h3>Our Experts</h3>
+            
             <div className="team-members">
               {members.map((member, index) => (
                 <motion.div 
@@ -47,7 +47,7 @@ const Team = () => {
                     <img src={member.image} alt={member.name} />
                   </div>
                   <div className="member-info">
-                    <h4>{member.name}</h4>
+                    <h3>{member.name}</h3>
                     <p>{member.position}</p>
                   </div>
                 </motion.div>
@@ -60,4 +60,4 @@ const Team = () => {
   );
 };
 
-export default Team;
+export default Team;  

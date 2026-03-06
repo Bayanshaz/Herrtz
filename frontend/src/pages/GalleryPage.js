@@ -7,14 +7,11 @@ import { useData } from '../context/DataContext';
 import { motion } from 'framer-motion';
 import Loading from '../components/common/Loading';
 import { FiImage, FiPlay } from 'react-icons/fi';
-import { getOptimizedImage, getSrcSet, PLACEHOLDER_IMAGE, imageDimensions } from '../utils/imageUtils';
-
 
 const GalleryPage = () => {
   const { projects, videos, loading } = useData();
   const [filter, setFilter] = useState('all');
   const [selectedVideo, setSelectedVideo] = useState(null);
-  const [imageErrors, setImageErrors] = useState({});
 
   if (loading) return <Loading />;
 
@@ -22,44 +19,81 @@ const GalleryPage = () => {
     ? projects 
     : projects.filter(p => p.category === filter);
 
-  const handleImageError = (projectId) => {
-    setImageErrors(prev => ({ ...prev, [projectId]: true }));
+  // Function to extract YouTube video ID from various URL formats
+  const getYoutubeVideoId = (url) => {
+    if (!url) return null;
+    
+    // Regular expressions for different YouTube URL formats
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?%#]+)/i,
+      /^.*(youtu.be\/|v\/|embed\/|watch\?v=|&v=)([^#&?]*).*/,
+      /youtube\.com\/shorts\/([^&?%#]+)/i
+    ];
+
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match && match[1] && match[1].length === 11) {
+        return match[1];
+      }
+      if (match && match[2] && match[2].length === 11) {
+        return match[2];
+      }
+    }
+    
+    // Try to extract from query string as fallback
+    try {
+      const urlObj = new URL(url);
+      const videoId = urlObj.searchParams.get('v');
+      if (videoId && videoId.length === 11) return videoId;
+    } catch (e) {
+      // Invalid URL, ignore
+    }
+    
+    console.warn('Could not extract YouTube ID from:', url);
+    return null;
   };
 
-  const getYoutubeVideoId = (url) => {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
+  // Function to get high-quality thumbnail
+  const getYoutubeThumbnail = (videoId, quality = 'maxresdefault') => {
+    if (!videoId) return null;
+    
+    // Different thumbnail qualities available:
+    // maxresdefault.jpg (HD - 1280x720)
+    // sddefault.jpg (640x480)
+    // hqdefault.jpg (480x360)
+    // mqdefault.jpg (320x180)
+    // default.jpg (120x90)
+    
+    const thumbnailUrls = [
+      `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`, // HD
+      `https://img.youtube.com/vi/${videoId}/sddefault.jpg`,     // SD
+      `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,     // High quality
+      `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,     // Medium quality
+      `https://img.youtube.com/vi/${videoId}/default.jpg`        // Default
+    ];
+    
+    return thumbnailUrls;
   };
 
   return (
     <>
       <Header />
-      
       <section className="gallery-hero">
         <div className="container">
-          <motion.div 
-            className="hero-content"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <h1>Our Gallery</h1>
-            <p>Explore our portfolio of exceptional construction projects across Kerala.</p>
-          </motion.div>
+          <h1>Our Gallery</h1>
+          <p>Explore our portfolio of exceptional construction projects.</p>
         </div>
       </section>
-
+      
       <section className="gallery-section">
         <div className="container">
           <h2 className="section-title">Project Photos</h2>
-          
           <div className="gallery-filter">
             <button 
               className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
               onClick={() => setFilter('all')}
             >
-              All Projects
+              All
             </button>
             <button 
               className={`filter-btn ${filter === 'residential' ? 'active' : ''}`}
@@ -82,65 +116,46 @@ const GalleryPage = () => {
           </div>
 
           <div className="gallery-grid">
-            {filteredProjects.map((project, index) => {
-              const imageUrl = imageErrors[project._id] 
-                ? PLACEHOLDER_IMAGE 
-                : (project.mainImage || project.image);
-              
-              return (
-                <motion.div 
-                  key={project._id}
-                  className="gallery-item"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <Link to={`/project/${project._id}`}>
-                    <img 
-                      src={getOptimizedImage(imageUrl, imageDimensions.gallery)} 
-                      srcSet={getSrcSet(imageUrl)}
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                      alt={project.title}
-                      onError={() => handleImageError(project._id)}
-                      loading="lazy"
-                    />
-                    <div className="gallery-overlay">
-                      <h3>{project.title}</h3>
-                      <p>{project.location}</p>
-                      <span className={`category-badge ${project.category}`}>
-                        {project.category}
-                      </span>
-                      {project.images && project.images.length > 0 && (
-                        <span className="photo-count">
-                          <FiImage /> {project.images.length + 1}
-                        </span>
-                      )}
-                    </div>
-                  </Link>
-                </motion.div>
-              );
-            })}
+            {filteredProjects.map((project, index) => (
+              <motion.div 
+                key={project._id}
+                className="gallery-item"
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <Link to={`/project/${project._id}`}>
+                  <img 
+                    src={project.mainImage} 
+                    alt={project.title}
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                    }}
+                  />
+                  <div className="gallery-overlay">
+                    <h3>{project.title}</h3>
+                    <p>{project.location}</p>
+                    <span className={`category-badge ${project.category}`}>{project.category}</span>
+                    {project.images?.length > 0 && (
+                      <span className="photo-count"><FiImage /> {project.images.length + 1}</span>
+                    )}
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Video Gallery Section */}
       {videos.length > 0 && (
         <section className="video-gallery">
           <div className="container">
             <h2 className="section-title">Project Videos</h2>
-            <p className="section-subtitle">Click on any video to watch it directly on our website</p>
-            
             <div className="videos-grid">
               {videos.map((video, index) => {
                 const videoId = getYoutubeVideoId(video.url);
-                const thumbnail = videoId 
-                  ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` 
-                  : '';
-                const fallbackThumbnail = videoId 
-                  ? `https://img.youtube.com/vi/${videoId}/0.jpg` 
-                  : '';
+                const thumbnailUrls = videoId ? getYoutubeThumbnail(videoId) : [];
                 
                 return (
                   <motion.div 
@@ -153,15 +168,28 @@ const GalleryPage = () => {
                     onClick={() => setSelectedVideo(video)}
                   >
                     <div className="video-thumbnail">
-                      <img 
-                        src={thumbnail} 
-                        alt={video.title}
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = fallbackThumbnail;
-                        }}
-                        loading="lazy"
-                      />
+                      {videoId ? (
+                        <img 
+                          src={thumbnailUrls[0]} // Try HD first
+                          alt={video.title}
+                          onError={(e) => {
+                            // Try next quality if HD fails
+                            const currentSrc = e.target.src;
+                            const nextIndex = thumbnailUrls.indexOf(currentSrc) + 1;
+                            if (nextIndex < thumbnailUrls.length) {
+                              e.target.src = thumbnailUrls[nextIndex];
+                            } else {
+                              // If all thumbnails fail, show fallback
+                              e.target.src = 'https://via.placeholder.com/320x180?text=Video+Preview';
+                            }
+                          }}
+                        />
+                      ) : (
+                        <img 
+                          src="https://via.placeholder.com/320x180?text=Invalid+URL" 
+                          alt="Invalid video URL"
+                        />
+                      )}
                       <div className="play-button">
                         <FiPlay />
                       </div>
@@ -180,17 +208,16 @@ const GalleryPage = () => {
 
       <section className="cta">
         <div className="container">
-          <h2>Ready to Start Your Construction Project?</h2>
-          <p>Let's bring your vision to life with our expertise in construction and design.</p>
-          <Link to="/#contact" className="btn">Contact Us Today</Link>
+          <h2>Ready to Start Your Project?</h2>
+          <Link to="/#contact" className="btn">Contact Us</Link>
         </div>
       </section>
 
       {selectedVideo && (
-        <VideoPlayer
-          videoUrl={selectedVideo.url}
-          videoTitle={selectedVideo.title}
-          onClose={() => setSelectedVideo(null)}
+        <VideoPlayer 
+          videoUrl={selectedVideo.url} 
+          videoTitle={selectedVideo.title} 
+          onClose={() => setSelectedVideo(null)} 
         />
       )}
 

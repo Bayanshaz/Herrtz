@@ -1,6 +1,6 @@
 const Message = require('../models/Message');
 
-exports.submitMessage = async (req, res, next) => {
+exports.submitMessage = async (req, res) => {
   try {
     const { name, email, phone, message } = req.body;
 
@@ -11,10 +11,18 @@ exports.submitMessage = async (req, res, next) => {
       });
     }
 
+    const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid email address'
+      });
+    }
+
     const newMessage = await Message.create({
       name,
       email,
-      phone,
+      phone: phone || '',
       message
     });
 
@@ -24,11 +32,15 @@ exports.submitMessage = async (req, res, next) => {
       message: 'Message sent successfully!'
     });
   } catch (err) {
-    next(err);
+    console.error('Error submitting message:', err);
+    res.status(500).json({
+      success: false,
+      message: err.message || 'Failed to send message'
+    });
   }
 };
 
-exports.getMessages = async (req, res, next) => {
+exports.getMessages = async (req, res) => {
   try {
     const messages = await Message.find().sort('-createdAt');
     res.status(200).json({
@@ -37,11 +49,15 @@ exports.getMessages = async (req, res, next) => {
       data: messages
     });
   } catch (err) {
-    next(err);
+    console.error('Error fetching messages:', err);
+    res.status(500).json({
+      success: false,
+      message: err.message || 'Failed to fetch messages'
+    });
   }
 };
 
-exports.updateMessageStatus = async (req, res, next) => {
+exports.updateMessageStatus = async (req, res) => {
   try {
     const message = await Message.findByIdAndUpdate(
       req.params.id,
@@ -61,11 +77,15 @@ exports.updateMessageStatus = async (req, res, next) => {
       data: message
     });
   } catch (err) {
-    next(err);
+    console.error('Error updating message status:', err);
+    res.status(500).json({
+      success: false,
+      message: err.message || 'Failed to update message status'
+    });
   }
 };
 
-exports.deleteMessage = async (req, res, next) => {
+exports.deleteMessage = async (req, res) => {
   try {
     const message = await Message.findById(req.params.id);
 
@@ -80,9 +100,13 @@ exports.deleteMessage = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      data: {}
+      message: 'Message deleted successfully'
     });
   } catch (err) {
-    next(err);
+    console.error('Error deleting message:', err);
+    res.status(500).json({
+      success: false,
+      message: err.message || 'Failed to delete message'
+    });
   }
 };

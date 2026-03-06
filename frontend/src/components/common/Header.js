@@ -10,15 +10,18 @@ const Header = () => {
 
   useEffect(() => {
     const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+      // Close menu when scrolling starts
       if (window.scrollY > 50) {
-        setScrolled(true);
-      } else {
-        setScrolled(false);
+        setIsOpen(false);
       }
     };
-
+    
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   const handleNavClick = (sectionId) => {
@@ -31,11 +34,8 @@ const Header = () => {
       navigate('/gallery');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      // For home page sections (team, services, contact)
       if (location.pathname !== '/') {
-        // If not on home page, navigate to home first
         navigate('/');
-        // Wait for navigation to complete then scroll
         setTimeout(() => {
           const element = document.getElementById(sectionId);
           if (element) {
@@ -43,7 +43,6 @@ const Header = () => {
           }
         }, 100);
       } else {
-        // Already on home page, just scroll
         const element = document.getElementById(sectionId);
         if (element) {
           element.scrollIntoView({ behavior: 'smooth' });
@@ -60,54 +59,76 @@ const Header = () => {
     { id: 'contact', label: 'CONTACT', type: 'scroll' }
   ];
 
-  const isActive = (item) => {
-    if (item.type === 'link') {
-      return location.pathname === item.id;
-    }
-    return false;
-  };
-
   return (
     <header className={scrolled ? 'scrolled' : ''}>
       <div className="container">
         <nav className="navbar">
-          {/* Logo */}
+          {/* Logo on left */}
           <Link to="/" className="logo" onClick={() => setIsOpen(false)}>
-            <img 
-              src="/logo.jpg" 
-              alt="Harrtz Concepts" 
-              className="logo-img"
-            />
+            <img src="/logo.png" alt="Harrtz Concepts" className="logo-img" />
           </Link>
 
-          {/* Navigation Links */}
-          <ul className={`nav-links ${isOpen ? 'active' : ''}`}>
-            {navItems.map(item => (
-              <li key={item.id}>
-                {item.type === 'link' ? (
-                  <Link 
-                    to={item.id}
-                    onClick={() => setIsOpen(false)}
-                    className={isActive(item) ? 'active' : ''}
-                  >
-                    {item.label}
-                  </Link>
-                ) : (
-                  <span 
-                    onClick={() => handleNavClick(item.id)}
-                    className={location.pathname === '/' && document.getElementById(item.id) ? 'scroll-link' : 'scroll-link'}
-                  >
-                    {item.label}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
+          {/* Horizontal Navigation - visible on desktop when NOT scrolled */}
+          {!scrolled && window.innerWidth > 992 && (
+            <ul className="nav-links horizontal-nav">
+              {navItems.map(item => (
+                <li key={item.id}>
+                  {item.type === 'link' ? (
+                    <Link 
+                      to={item.id} 
+                      onClick={() => {
+                        if (item.id === '/gallery') {
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                      }}
+                      className={location.pathname === item.id ? 'active' : ''}
+                    >
+                      {item.label}
+                    </Link>
+                  ) : (
+                    <span onClick={() => handleNavClick(item.id)}>
+                      {item.label}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
 
-          {/* Mobile Menu Toggle */}
-          <div className="hamburger" onClick={() => setIsOpen(!isOpen)}>
-            {isOpen ? <FiX /> : <FiMenu />}
-          </div>
+          {/* Menu Icon - visible on mobile OR when scrolled on desktop */}
+          {(window.innerWidth <= 992 || scrolled) && (
+            <div className="menu-icon-container" onClick={() => setIsOpen(!isOpen)}>
+              {isOpen ? <FiX /> : <FiMenu />}
+            </div>
+          )}
+
+          {/* Dropdown Menu - appears when icon is clicked */}
+          {isOpen && (
+            <div className="dropdown-menu">
+              {navItems.map(item => (
+                <div key={item.id} className="dropdown-item">
+                  {item.type === 'link' ? (
+                    <Link 
+                      to={item.id} 
+                      onClick={() => {
+                        setIsOpen(false);
+                        if (item.id === '/gallery') {
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                      }}
+                      className={location.pathname === item.id ? 'active' : ''}
+                    >
+                      {item.label}
+                    </Link>
+                  ) : (
+                    <span onClick={() => handleNavClick(item.id)}>
+                      {item.label}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </nav>
       </div>
     </header>

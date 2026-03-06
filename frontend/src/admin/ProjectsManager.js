@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { FiEdit2, FiTrash2, FiPlus, FiX, FiEye, FiImage } from 'react-icons/fi';
 import Modal from 'react-modal';
-import { useDropzone } from 'react-dropzone';
 import toast from 'react-hot-toast';
 
 Modal.setAppElement('#root');
@@ -13,6 +12,9 @@ const ProjectsManager = () => {
   const [viewModalIsOpen, setViewModalIsOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [viewingProject, setViewingProject] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [newImageUrl, setNewImageUrl] = useState('');
+  
   const [formData, setFormData] = useState({
     title: '',
     category: 'residential',
@@ -21,90 +23,87 @@ const ProjectsManager = () => {
     featured: false,
     area: '',
     duration: '',
-    completedDate: ''
+    completedDate: '',
+    mainImage: '',
+    images: []
   });
-  const [mainImage, setMainImage] = useState(null);
-  const [mainImagePreview, setMainImagePreview] = useState(null);
-  const [additionalImages, setAdditionalImages] = useState([]);
-  const [additionalPreviews, setAdditionalPreviews] = useState([]);
-  const [loading, setLoading] = useState(false);
+
   const token = localStorage.getItem('token');
 
-  const { getRootProps: getMainRootProps, getInputProps: getMainInputProps } = useDropzone({
-    accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp']
-    },
-    maxFiles: 1,
-    onDrop: (acceptedFiles) => {
-      const file = acceptedFiles[0];
-      setMainImage(file);
-      setMainImagePreview(URL.createObjectURL(file));
-    }
-  });
-
-  const { getRootProps: getAdditionalRootProps, getInputProps: getAdditionalInputProps } = useDropzone({
-    accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp']
-    },
-    maxFiles: 10,
-    onDrop: (acceptedFiles) => {
-      setAdditionalImages([...additionalImages, ...acceptedFiles]);
-      const newPreviews = acceptedFiles.map(file => URL.createObjectURL(file));
-      setAdditionalPreviews([...additionalPreviews, ...newPreviews]);
-    }
-  });
-
-  const removeAdditionalImage = (index) => {
-    const newImages = [...additionalImages];
-    const newPreviews = [...additionalPreviews];
-    newImages.splice(index, 1);
-    newPreviews.splice(index, 1);
-    setAdditionalImages(newImages);
-    setAdditionalPreviews(newPreviews);
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData({
+      ...formData,
+      [name]: type === 'checkbox' ? checked : value
+    });
   };
 
-  const openModal = (project = null) => {
-    if (project) {
-      setEditingProject(project);
-      setFormData({
-        title: project.title,
-        category: project.category,
-        location: project.location,
-        description: project.description || '',
-        featured: project.featured || false,
-        area: project.area || '',
-        duration: project.duration || '',
-        completedDate: project.completedDate ? project.completedDate.split('T')[0] : ''
-      });
-      setMainImagePreview(project.mainImage || project.image);
-      setAdditionalPreviews(project.images || []);
-    } else {
-      setEditingProject(null);
-      setFormData({
-        title: '',
-        category: 'residential',
-        location: '',
-        description: '',
-        featured: false,
-        area: '',
-        duration: '',
-        completedDate: ''
-      });
-      setMainImage(null);
-      setMainImagePreview(null);
-      setAdditionalImages([]);
-      setAdditionalPreviews([]);
+  const handleAddImageUrl = () => {
+    if (!newImageUrl.trim()) {
+      toast.error('Please enter an image URL');
+      return;
     }
+    if (!newImageUrl.match(/^https?:\/\/.+\/.+$/)) {
+      toast.error('Please enter a valid URL (must start with http:// or https://)');
+      return;
+    }
+    setFormData({
+      ...formData,
+      images: [...formData.images, newImageUrl.trim()]
+    });
+    setNewImageUrl('');
+    toast.success('Image URL added');
+  };
+
+  const handleRemoveImageUrl = (index) => {
+    setFormData({
+      ...formData,
+      images: formData.images.filter((_, i) => i !== index)
+    });
+  };
+
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      category: 'residential',
+      location: '',
+      description: '',
+      featured: false,
+      area: '',
+      duration: '',
+      completedDate: '',
+      mainImage: '',
+      images: []
+    });
+    setNewImageUrl('');
+    setEditingProject(null);
+  };
+
+  const openNewModal = () => {
+    resetForm();
+    setModalIsOpen(true);
+  };
+
+  const openEditModal = (project) => {
+    setEditingProject(project);
+    setFormData({
+      title: project.title,
+      category: project.category,
+      location: project.location,
+      description: project.description || '',
+      featured: project.featured || false,
+      area: project.area || '',
+      duration: project.duration || '',
+      completedDate: project.completedDate ? project.completedDate.split('T')[0] : '',
+      mainImage: project.mainImage || '',
+      images: project.images || []
+    });
     setModalIsOpen(true);
   };
 
   const closeModal = () => {
     setModalIsOpen(false);
-    setEditingProject(null);
-    setMainImage(null);
-    setMainImagePreview(null);
-    setAdditionalImages([]);
-    setAdditionalPreviews([]);
+    resetForm();
   };
 
   const openViewModal = (project) => {
@@ -114,43 +113,27 @@ const ProjectsManager = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    
-    if (!mainImagePreview && !editingProject) {
-      toast.error('Please select a main image');
-      setLoading(false);
+    if (!formData.mainImage.trim()) {
+      toast.error('Please enter a main image URL');
       return;
     }
 
-    const formDataToSend = new FormData();
-    formDataToSend.append('title', formData.title);
-    formDataToSend.append('category', formData.category);
-    formDataToSend.append('location', formData.location);
-    formDataToSend.append('description', formData.description);
-    formDataToSend.append('featured', formData.featured);
-    formDataToSend.append('area', formData.area);
-    formDataToSend.append('duration', formData.duration);
-    formDataToSend.append('completedDate', formData.completedDate);
-    
-    if (mainImage) {
-      formDataToSend.append('mainImage', mainImage);
-    }
-
-    additionalImages.forEach(image => {
-      formDataToSend.append('images', image);
-    });
-
-    let result;
-    if (editingProject) {
-      result = await updateProject(editingProject._id, formDataToSend, token);
-    } else {
-      result = await addProject(formDataToSend, token);
-    }
-
-    setLoading(false);
-
-    if (result?.success) {
-      closeModal();
+    setLoading(true);
+    try {
+      let result;
+      if (editingProject) {
+        result = await updateProject(editingProject._id, formData, token);
+      } else {
+        result = await addProject(formData, token);
+      }
+      if (result?.success) {
+        toast.success(editingProject ? 'Project updated!' : 'Project created!');
+        closeModal();
+      }
+    } catch (error) {
+      toast.error('Operation failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -164,7 +147,7 @@ const ProjectsManager = () => {
     <div className="admin-section">
       <div className="section-header">
         <h2>Projects Management</h2>
-        <button onClick={() => openModal()} className="btn-primary">
+        <button onClick={openNewModal} className="btn-primary">
           <FiPlus /> Add New Project
         </button>
       </div>
@@ -173,70 +156,47 @@ const ProjectsManager = () => {
         {projects && projects.length > 0 ? (
           projects.map(project => (
             <div key={project._id} className="project-card">
-              <img src={project.mainImage || project.image} alt={project.title} />
+              <img 
+                src={project.mainImage} 
+                alt={project.title}
+                onError={(e) => e.target.src = 'https://via.placeholder.com/300x200?text=No+Image'}
+              />
               <div className="project-info">
                 <h3>{project.title}</h3>
                 <p>{project.location}</p>
-                <span className={`category-badge ${project.category}`}>
-                  {project.category}
-                </span>
+                <span className={`category-badge ${project.category}`}>{project.category}</span>
                 {project.featured && <span className="featured-badge">Featured</span>}
-                {project.images && project.images.length > 0 && (
-                  <span className="photo-count">
-                    <FiImage /> {project.images.length + 1}
-                  </span>
+                {project.images?.length > 0 && (
+                  <span className="photo-count"><FiImage /> {project.images.length + 1}</span>
                 )}
               </div>
               <div className="card-actions">
-                <button onClick={() => openViewModal(project)} className="view-btn" title="View">
-                  <FiEye />
-                </button>
-                <button onClick={() => openModal(project)} className="edit-btn" title="Edit">
-                  <FiEdit2 />
-                </button>
-                <button onClick={() => handleDelete(project._id)} className="delete-btn" title="Delete">
-                  <FiTrash2 />
-                </button>
+                <button onClick={() => openViewModal(project)} className="view-btn"><FiEye /></button>
+                <button onClick={() => openEditModal(project)} className="edit-btn"><FiEdit2 /></button>
+                <button onClick={() => handleDelete(project._id)} className="delete-btn"><FiTrash2 /></button>
               </div>
             </div>
           ))
         ) : (
-          <p>No projects yet. Click "Add New Project" to create one.</p>
+          <p className="no-data">No projects yet. Click "Add New Project" to create one.</p>
         )}
       </div>
 
-      <Modal
-        isOpen={modalIsOpen}
-        onRequestClose={closeModal}
-        className="admin-modal"
-        overlayClassName="modal-overlay"
-      >
+      <Modal isOpen={modalIsOpen} onRequestClose={closeModal} className="admin-modal" overlayClassName="modal-overlay">
         <div className="modal-header">
           <h3>{editingProject ? 'Edit Project' : 'Add New Project'}</h3>
-          <button onClick={closeModal} className="close-btn">
-            <FiX />
-          </button>
+          <button onClick={closeModal} className="close-btn"><FiX /></button>
         </div>
 
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-row">
             <div className="form-group">
-              <label>Project Title *</label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => setFormData({...formData, title: e.target.value})}
-                required
-              />
+              <label>Title *</label>
+              <input type="text" name="title" value={formData.title} onChange={handleInputChange} required />
             </div>
-
             <div className="form-group">
               <label>Category *</label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({...formData, category: e.target.value})}
-                required
-              >
+              <select name="category" value={formData.category} onChange={handleInputChange} required>
                 <option value="residential">Residential</option>
                 <option value="commercial">Commercial</option>
                 <option value="renovation">Renovation</option>
@@ -247,102 +207,65 @@ const ProjectsManager = () => {
           <div className="form-row">
             <div className="form-group">
               <label>Location *</label>
-              <input
-                type="text"
-                value={formData.location}
-                onChange={(e) => setFormData({...formData, location: e.target.value})}
-                required
-              />
+              <input type="text" name="location" value={formData.location} onChange={handleInputChange} required />
             </div>
-
             <div className="form-group">
               <label>Area (sq.ft)</label>
-              <input
-                type="text"
-                value={formData.area}
-                onChange={(e) => setFormData({...formData, area: e.target.value})}
-                placeholder="e.g., 2500 sq.ft"
-              />
+              <input type="text" name="area" value={formData.area} onChange={handleInputChange} placeholder="e.g., 2500 sq.ft" />
             </div>
           </div>
 
           <div className="form-row">
             <div className="form-group">
               <label>Duration</label>
-              <input
-                type="text"
-                value={formData.duration}
-                onChange={(e) => setFormData({...formData, duration: e.target.value})}
-                placeholder="e.g., 6 months"
-              />
+              <input type="text" name="duration" value={formData.duration} onChange={handleInputChange} placeholder="e.g., 6 months" />
             </div>
-
             <div className="form-group">
               <label>Completed Date</label>
-              <input
-                type="date"
-                value={formData.completedDate}
-                onChange={(e) => setFormData({...formData, completedDate: e.target.value})}
-              />
+              <input type="date" name="completedDate" value={formData.completedDate} onChange={handleInputChange} />
             </div>
           </div>
 
           <div className="form-group">
             <label>Description</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-              rows="4"
-            />
+            <textarea name="description" value={formData.description} onChange={handleInputChange} rows="4" />
           </div>
 
           <div className="form-group checkbox-group">
             <label>
-              <input
-                type="checkbox"
-                checked={formData.featured}
-                onChange={(e) => setFormData({...formData, featured: e.target.checked})}
-              />
+              <input type="checkbox" name="featured" checked={formData.featured} onChange={handleInputChange} />
               Featured Project
             </label>
           </div>
 
           <div className="form-group">
-            <label>Main Image (1024x768 recommended) *</label>
-            <div {...getMainRootProps()} className="dropzone">
-              <input {...getMainInputProps()} />
-              {mainImagePreview ? (
-                <div className="image-preview">
-                  <img src={mainImagePreview} alt="Main preview" />
-                  <p>Click or drag to change main image</p>
-                </div>
-              ) : (
-                <p>Drag & drop main image here, or click to select</p>
-              )}
-            </div>
+            <label>Main Image URL *</label>
+            <input type="url" name="mainImage" value={formData.mainImage} onChange={handleInputChange} placeholder="https://example.com/image.jpg" />
+            {formData.mainImage && (
+              <div className="image-preview">
+                <img src={formData.mainImage} alt="Preview" onError={(e) => e.target.src = 'https://via.placeholder.com/200x150?text=Invalid+URL'} />
+              </div>
+            )}
           </div>
 
           <div className="form-group">
-            <label>Additional Images (up to 10)</label>
-            <div {...getAdditionalRootProps()} className="dropzone">
-              <input {...getAdditionalInputProps()} />
-              <p>Drag & drop additional images here, or click to select</p>
+            <label>Additional Image URLs</label>
+            <div className="url-input-group">
+              <input type="url" value={newImageUrl} onChange={(e) => setNewImageUrl(e.target.value)} placeholder="https://example.com/image2.jpg" />
+              <button type="button" onClick={handleAddImageUrl} className="btn-add-url"><FiPlus /> Add</button>
             </div>
 
-            {additionalPreviews.length > 0 && (
-              <div className="additional-previews">
-                <h4>Additional Images ({additionalPreviews.length})</h4>
-                <div className="preview-grid">
-                  {additionalPreviews.map((preview, index) => (
-                    <div key={index} className="preview-item">
-                      <img src={preview} alt={`Additional ${index + 1}`} />
-                      <button 
-                        type="button"
-                        onClick={() => removeAdditionalImage(index)}
-                        className="remove-image"
-                      >
-                        <FiX />
-                      </button>
+            {formData.images.length > 0 && (
+              <div className="url-list">
+                <h4>Added Images ({formData.images.length})</h4>
+                <div className="url-items">
+                  {formData.images.map((url, index) => (
+                    <div key={index} className="url-item">
+                      <div className="url-info">
+                        <img src={url} alt={`Preview ${index + 1}`} onError={(e) => e.target.src = 'https://via.placeholder.com/50x50?text=Error'} />
+                        <span className="url-text">{url.substring(0, 50)}...</span>
+                      </div>
+                      <button type="button" onClick={() => handleRemoveImageUrl(index)} className="btn-remove-url"><FiX /></button>
                     </div>
                   ))}
                 </div>
@@ -351,9 +274,7 @@ const ProjectsManager = () => {
           </div>
 
           <div className="modal-actions">
-            <button type="button" onClick={closeModal} className="btn-secondary">
-              Cancel
-            </button>
+            <button type="button" onClick={closeModal} className="btn-secondary">Cancel</button>
             <button type="submit" className="btn-primary" disabled={loading}>
               {loading ? 'Saving...' : (editingProject ? 'Update' : 'Add') + ' Project'}
             </button>
@@ -361,28 +282,16 @@ const ProjectsManager = () => {
         </form>
       </Modal>
 
-      <Modal
-        isOpen={viewModalIsOpen}
-        onRequestClose={() => setViewModalIsOpen(false)}
-        className="view-modal"
-        overlayClassName="modal-overlay"
-      >
+      <Modal isOpen={viewModalIsOpen} onRequestClose={() => setViewModalIsOpen(false)} className="view-modal" overlayClassName="modal-overlay">
         {viewingProject && (
           <>
             <div className="modal-header">
               <h3>{viewingProject.title}</h3>
-              <button onClick={() => setViewModalIsOpen(false)} className="close-btn">
-                <FiX />
-              </button>
+              <button onClick={() => setViewModalIsOpen(false)} className="close-btn"><FiX /></button>
             </div>
             <div className="view-content">
-              <img 
-                src={viewingProject.mainImage || viewingProject.image} 
-                alt={viewingProject.title} 
-                style={{ width: '100%', maxHeight: '400px', objectFit: 'cover' }}
-              />
-              
-              {viewingProject.images && viewingProject.images.length > 0 && (
+              <img src={viewingProject.mainImage} alt={viewingProject.title} />
+              {viewingProject.images?.length > 0 && (
                 <div className="view-additional">
                   <h4>Additional Images ({viewingProject.images.length})</h4>
                   <div className="additional-grid">
@@ -392,7 +301,6 @@ const ProjectsManager = () => {
                   </div>
                 </div>
               )}
-
               <div className="view-details">
                 <p><strong>Category:</strong> {viewingProject.category}</p>
                 <p><strong>Location:</strong> {viewingProject.location}</p>

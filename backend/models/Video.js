@@ -8,11 +8,17 @@ const VideoSchema = new mongoose.Schema({
   },
   url: {
     type: String,
-    required: [true, 'Please add a YouTube URL']
+    required: [true, 'Please add a YouTube URL'],
+    validate: {
+      validator: function(v) {
+        return /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/.test(v);
+      },
+      message: 'Please provide a valid YouTube URL'
+    }
   },
   description: {
     type: String,
-    maxlength: [200, 'Description cannot be more than 200 characters']
+    maxlength: [300, 'Description cannot be more than 300 characters']
   },
   createdAt: {
     type: Date,

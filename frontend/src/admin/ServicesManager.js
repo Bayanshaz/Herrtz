@@ -8,7 +8,7 @@ Modal.setAppElement('#root');
 const ServicesManager = () => {
   const { services, addService, updateService, deleteService } = useData();
   const [modalIsOpen, setModalIsOpen] = useState(false);
-  const [viewModalIsOpen, setViewModalIsOpen] useState(false);
+  const [viewModalIsOpen, setViewModalIsOpen] = useState(false); // Fixed: Added = sign
   const [editingService, setEditingService] = useState(null);
   const [viewingService, setViewingService] = useState(null);
   const [formData, setFormData] = useState({

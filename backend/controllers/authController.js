@@ -1,6 +1,6 @@
 const User = require('../models/User');
 
-exports.login = async (req, res, next) => {
+exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -41,11 +41,14 @@ exports.login = async (req, res, next) => {
       }
     });
   } catch (err) {
-    next(err);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
 };
 
-exports.getMe = async (req, res, next) => {
+exports.getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     res.status(200).json({
@@ -53,6 +56,9 @@ exports.getMe = async (req, res, next) => {
       data: user
     });
   } catch (err) {
-    next(err);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
 };

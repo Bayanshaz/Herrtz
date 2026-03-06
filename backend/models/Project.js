@@ -21,18 +21,11 @@ const ProjectSchema = new mongoose.Schema({
   },
   mainImage: {
     type: String,
-    required: [true, 'Please add a main image']
-  },
-  image: {
-    type: String // For backward compatibility
+    required: [true, 'Please add a main image URL']
   },
   images: [{
     type: String
   }],
-  cloudinaryIds: {
-    main: String,
-    additional: [String]
-  },
   featured: {
     type: Boolean,
     default: false

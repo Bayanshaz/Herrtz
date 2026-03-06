@@ -3,7 +3,7 @@ import { FaWhatsapp } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 
 const WhatsAppButton = () => {
-  const phoneNumber = '+918281621295'; // Your WhatsApp number
+  const phoneNumber = '+918714763920'; // Your WhatsApp number
   const message = 'Hello! I would like to know more about your construction services.'; // Default message
 
   const handleClick = () => {

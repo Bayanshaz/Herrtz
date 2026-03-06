@@ -10,7 +10,6 @@ const { protect } = require('../middleware/authMiddleware');
 const router = express.Router();
 
 router.get('/', getServices);
-
 router.post('/', protect, createService);
 router.put('/:id', protect, updateService);
 router.delete('/:id', protect, deleteService);

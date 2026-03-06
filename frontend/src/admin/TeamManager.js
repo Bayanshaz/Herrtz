@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
-import { FiEdit2, FiTrash2, FiPlus, FiX, FiEye } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiPlus, FiX, FiEye, FiLink } from 'react-icons/fi';
 import Modal from 'react-modal';
-import { useDropzone } from 'react-dropzone';
 import toast from 'react-hot-toast';
 
 Modal.setAppElement('#root');
@@ -13,58 +12,74 @@ const TeamManager = () => {
   const [viewModalIsOpen, setViewModalIsOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [viewingMember, setViewingMember] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [imagePreview, setImagePreview] = useState(null);
+  
   const [formData, setFormData] = useState({
     name: '',
     position: '',
     bio: '',
-    isCEO: false
+    isCEO: false,
+    image: ''
   });
-  const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [loading, setLoading] = useState(false);
+
   const token = localStorage.getItem('token');
 
-  const { getRootProps, getInputProps } = useDropzone({
-    accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp']
-    },
-    maxFiles: 1,
-    onDrop: (acceptedFiles) => {
-      const file = acceptedFiles[0];
-      setImage(file);
-      setImagePreview(URL.createObjectURL(file));
-    }
-  });
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData({
+      ...formData,
+      [name]: type === 'checkbox' ? checked : value
+    });
+  };
 
-  const openModal = (member = null) => {
-    if (member) {
-      setEditingMember(member);
-      setFormData({
-        name: member.name,
-        position: member.position,
-        bio: member.bio || '',
-        isCEO: member.isCEO || false
-      });
-      setImagePreview(member.image);
+  const handleImageUrlChange = (e) => {
+    const url = e.target.value;
+    setFormData({
+      ...formData,
+      image: url
+    });
+    // Set preview if URL is valid
+    if (url.match(/^https?:\/\/.+\/.+$/)) {
+      setImagePreview(url);
     } else {
-      setEditingMember(null);
-      setFormData({
-        name: '',
-        position: '',
-        bio: '',
-        isCEO: false
-      });
-      setImage(null);
       setImagePreview(null);
     }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      position: '',
+      bio: '',
+      isCEO: false,
+      image: ''
+    });
+    setImagePreview(null);
+    setEditingMember(null);
+  };
+
+  const openNewModal = () => {
+    resetForm();
+    setModalIsOpen(true);
+  };
+
+  const openEditModal = (member) => {
+    setEditingMember(member);
+    setFormData({
+      name: member.name,
+      position: member.position,
+      bio: member.bio || '',
+      isCEO: member.isCEO || false,
+      image: member.image || ''
+    });
+    setImagePreview(member.image || null);
     setModalIsOpen(true);
   };
 
   const closeModal = () => {
     setModalIsOpen(false);
-    setEditingMember(null);
-    setImage(null);
-    setImagePreview(null);
+    resetForm();
   };
 
   const openViewModal = (member) => {
@@ -74,41 +89,56 @@ const TeamManager = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     
-    if (!imagePreview && !editingMember) {
-      toast.error('Please select an image');
-      setLoading(false);
+    // Validate required fields
+    if (!formData.name.trim()) {
+      toast.error('Please enter name');
+      return;
+    }
+    if (!formData.position.trim()) {
+      toast.error('Please enter position');
+      return;
+    }
+    if (!formData.image.trim()) {
+      toast.error('Please enter image URL');
       return;
     }
 
-    const formDataToSend = new FormData();
-    formDataToSend.append('name', formData.name);
-    formDataToSend.append('position', formData.position);
-    formDataToSend.append('bio', formData.bio);
-    formDataToSend.append('isCEO', formData.isCEO);
-    
-    if (image) {
-      formDataToSend.append('image', image);
+    // Validate URL format
+    if (!formData.image.match(/^https?:\/\/.+\/.+$/)) {
+      toast.error('Please enter a valid image URL (must start with http:// or https://)');
+      return;
     }
 
-    let result;
-    if (editingMember) {
-      result = await updateTeamMember(editingMember._id, formDataToSend, token);
-    } else {
-      result = await addTeamMember(formDataToSend, token);
-    }
+    setLoading(true);
 
-    setLoading(false);
+    try {
+      let result;
+      if (editingMember) {
+        result = await updateTeamMember(editingMember._id, formData, token);
+      } else {
+        result = await addTeamMember(formData, token);
+      }
 
-    if (result?.success) {
-      closeModal();
+      if (result?.success) {
+        toast.success(editingMember ? 'Team member updated!' : 'Team member added!');
+        closeModal();
+      }
+    } catch (error) {
+      toast.error('Operation failed');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this team member?')) {
-      await deleteTeamMember(id, token);
+  const handleDelete = async (id, name) => {
+    if (window.confirm(`Are you sure you want to delete ${name}?`)) {
+      setLoading(true);
+      const result = await deleteTeamMember(id, token);
+      if (result?.success) {
+        toast.success('Team member deleted successfully');
+      }
+      setLoading(false);
     }
   };
 
@@ -116,39 +146,58 @@ const TeamManager = () => {
     <div className="admin-section">
       <div className="section-header">
         <h2>Team Management</h2>
-        <button onClick={() => openModal()} className="btn-primary">
+        <button onClick={openNewModal} className="btn-primary">
           <FiPlus /> Add Team Member
         </button>
       </div>
 
-      <div className="team-grid">
+      <div className="team-grid" style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
+        gap: '20px' 
+      }}>
         {team && team.length > 0 ? (
           team.map(member => (
-            <div key={member._id} className="team-card">
-              <img src={member.image} alt={member.name} />
-              <div className="team-info">
+            <div key={member._id} className="project-card" style={{ position: 'relative' }}>
+              <img 
+                src={member.image} 
+                alt={member.name}
+                style={{ width: '100%', height: '220px', objectFit: 'cover' }}
+                onError={(e) => {
+                  e.target.src = 'https://via.placeholder.com/300x220?text=No+Image';
+                }}
+              />
+              <div className="project-info">
                 <h3>{member.name}</h3>
                 <p>{member.position}</p>
-                {member.isCEO && <span className="ceo-badge">CEO</span>}
+                {member.isCEO && <span className="featured-badge">CEO</span>}
+                {member.bio && <p style={{ fontSize: '13px', color: '#666', marginTop: '5px' }}>{member.bio.substring(0, 60)}...</p>}
               </div>
               <div className="card-actions">
                 <button onClick={() => openViewModal(member)} className="view-btn" title="View">
                   <FiEye />
                 </button>
-                <button onClick={() => openModal(member)} className="edit-btn" title="Edit">
+                <button onClick={() => openEditModal(member)} className="edit-btn" title="Edit">
                   <FiEdit2 />
                 </button>
-                <button onClick={() => handleDelete(member._id)} className="delete-btn" title="Delete">
+                <button 
+                  onClick={() => handleDelete(member._id, member.name)} 
+                  className="delete-btn" 
+                  title="Delete"
+                >
                   <FiTrash2 />
                 </button>
               </div>
             </div>
           ))
         ) : (
-          <p>No team members yet. Click "Add Team Member" to create one.</p>
+          <p className="no-data" style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px' }}>
+            No team members yet. Click "Add Team Member" to create one.
+          </p>
         )}
       </div>
 
+      {/* Add/Edit Modal */}
       <Modal
         isOpen={modalIsOpen}
         onRequestClose={closeModal}
@@ -168,8 +217,10 @@ const TeamManager = () => {
               <label>Full Name *</label>
               <input
                 type="text"
+                name="name"
                 value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                onChange={handleInputChange}
+                placeholder="e.g., John Doe"
                 required
               />
             </div>
@@ -178,8 +229,10 @@ const TeamManager = () => {
               <label>Position *</label>
               <input
                 type="text"
+                name="position"
                 value={formData.position}
-                onChange={(e) => setFormData({...formData, position: e.target.value})}
+                onChange={handleInputChange}
+                placeholder="e.g., Lead Architect"
                 required
               />
             </div>
@@ -188,9 +241,11 @@ const TeamManager = () => {
           <div className="form-group">
             <label>Bio</label>
             <textarea
+              name="bio"
               value={formData.bio}
-              onChange={(e) => setFormData({...formData, bio: e.target.value})}
+              onChange={handleInputChange}
               rows="3"
+              placeholder="Brief description about the team member..."
             />
           </div>
 
@@ -198,26 +253,46 @@ const TeamManager = () => {
             <label>
               <input
                 type="checkbox"
+                name="isCEO"
                 checked={formData.isCEO}
-                onChange={(e) => setFormData({...formData, isCEO: e.target.checked})}
+                onChange={handleInputChange}
               />
               CEO / Founder
             </label>
           </div>
 
           <div className="form-group">
-            <label>Profile Image *</label>
-            <div {...getRootProps()} className="dropzone">
-              <input {...getInputProps()} />
-              {imagePreview ? (
-                <div className="image-preview">
-                  <img src={imagePreview} alt="Preview" />
-                  <p>Click or drag to change</p>
-                </div>
-              ) : (
-                <p>Drag & drop an image here, or click to select</p>
-              )}
+            <label>Image URL *</label>
+            <div className="url-input-group" style={{ display: 'flex', gap: '10px' }}>
+              <input
+                type="url"
+                name="image"
+                value={formData.image}
+                onChange={handleImageUrlChange}
+                placeholder="https://example.com/image.jpg"
+                style={{ flex: 1 }}
+                required
+              />
+              <FiLink size={20} style={{ alignSelf: 'center', color: '#999' }} />
             </div>
+            <p className="input-hint" style={{ fontSize: '12px', color: '#999', marginTop: '5px' }}>
+              Enter a valid image URL (must start with http:// or https://)
+            </p>
+            
+            {imagePreview && (
+              <div className="image-preview" style={{ marginTop: '15px', textAlign: 'center' }}>
+                <img 
+                  src={imagePreview} 
+                  alt="Preview"
+                  style={{ maxWidth: '200px', maxHeight: '150px', borderRadius: '5px', border: '1px solid #ddd' }}
+                  onError={() => {
+                    setImagePreview(null);
+                    toast.error('Invalid image URL - preview failed');
+                  }}
+                />
+                <p style={{ fontSize: '12px', color: '#999', marginTop: '5px' }}>Image Preview</p>
+              </div>
+            )}
           </div>
 
           <div className="modal-actions">
@@ -231,6 +306,7 @@ const TeamManager = () => {
         </form>
       </Modal>
 
+      {/* View Modal */}
       <Modal
         isOpen={viewModalIsOpen}
         onRequestClose={() => setViewModalIsOpen(false)}
@@ -246,11 +322,25 @@ const TeamManager = () => {
               </button>
             </div>
             <div className="view-content">
-              <img src={viewingMember.image} alt={viewingMember.name} />
-              <div className="view-details">
+              <img 
+                src={viewingMember.image} 
+                alt={viewingMember.name}
+                style={{ width: '100%', maxHeight: '300px', objectFit: 'cover', borderRadius: '5px' }}
+                onError={(e) => {
+                  e.target.src = 'https://via.placeholder.com/600x300?text=No+Image';
+                }}
+              />
+              
+              <div className="view-details" style={{ padding: '20px' }}>
+                <p><strong>Name:</strong> {viewingMember.name}</p>
                 <p><strong>Position:</strong> {viewingMember.position}</p>
-                <p><strong>Bio:</strong> {viewingMember.bio || 'No bio available'}</p>
-                {viewingMember.isCEO && <p className="featured">👑 Founder & CEO</p>}
+                {viewingMember.isCEO && <p><strong>Role:</strong> 👑 Founder & CEO</p>}
+                {viewingMember.bio && (
+                  <>
+                    <p><strong>Bio:</strong></p>
+                    <p style={{ whiteSpace: 'pre-wrap' }}>{viewingMember.bio}</p>
+                  </>
+                )}
               </div>
             </div>
           </>
